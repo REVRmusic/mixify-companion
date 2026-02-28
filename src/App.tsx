@@ -53,7 +53,7 @@ useEffect(() => {
       if (update) {
         // Si une mise à jour est trouvée, on affiche une alerte au DJ
         const wantsUpdate = window.confirm(
-          `Une nouvelle version de Mixify Companion (${update.version}) est disponible !\n\nNotes de mise à jour : ${update.body}\n\nVoulez-vous l'installer maintenant ?`
+          `Une nouvelle version de Mixify Copilot (${update.version}) est disponible !\n\nNotes de mise à jour : ${update.body}\n\nVoulez-vous l'installer maintenant ?`
         );
 
         if (wantsUpdate) {
@@ -241,7 +241,7 @@ useEffect(() => {
       <div style={{ padding: 40, fontFamily: 'sans-serif', color: 'white' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 15, marginBottom: 30 }}>
           <img src={logoBlanc} alt="Mixify" style={{ height: 40 }} />
-          <h2 style={{ margin: 0 }}>Companion</h2>
+          <h2 style={{ margin: 0 }}>Copilot</h2>
         </div>
         <form onSubmit={handleLogin}>
           <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ display: 'block', marginBottom: 10, padding: 8, width: 250 }} />
@@ -303,7 +303,7 @@ useEffect(() => {
               
               {evt.spotify_mode && (
                 <div style={{ marginTop: 15, padding: 10, backgroundColor: 'rgba(218, 54, 51, 0.1)', color: '#ff7b72', borderRadius: 6, fontSize: 13 }}>
-                  ⚠️ Le mode Spotify est activé pour cet événement. La companion app Serato n'est pas utilisable ici.
+                  ⚠️ Le mode Spotify est activé pour cet événement. La companion app Mixify n'est pas utilisable ici.
                 </div>
               )}
             </div>
@@ -319,7 +319,7 @@ useEffect(() => {
       <header className="app-header" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
           <img src={logoBlanc} alt="Mixify" style={{ height: 35 }} />
-          <h2 style={{ margin: 0, fontSize: 20 }}>Companion</h2>
+          <h2 style={{ margin: 0, fontSize: 20 }}>Copilot</h2>
         </div>
         <span className="user-email">{session.user.email}</span>
       </header>
