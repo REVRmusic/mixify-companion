@@ -1,0 +1,11 @@
+{
+  "version": "0.1.0",
+  "notes": "Initial release",
+  "pub_date": "2026-02-28T12:00:00Z",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "TA_SIGNATURE_VIENDRA_ICI",
+      "url": "https://github.com/REVRmusic/mixify-companion/releases/download/v0.1.0/mixify-companion_0.1.0_aarch64.app.tar.gz"
+    }
+  }
+}

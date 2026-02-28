@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import "./App.css";
+import logoBlanc from "./assets/mixify-logo-blanc.png"; 
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 
 // On explique à TypeScript la forme exacte des données de ton événement
 interface MixifyEvent {
@@ -28,15 +31,45 @@ function App() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   
   const lastSentTrackRef = useRef<string>("");
+  
+  // État pour la validation temporelle
+  const [pendingTrack, setPendingTrack] = useState<{name: string, detectedAt: number} | null>(null);
 
   // Clé publique Supabase requise par ton API
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5dmJuZmNuZ2x0a2dhZXJjeWJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ2ODg5MzAsImV4cCI6MjA1MDI2NDkzMH0.UXPQPSAlYmu2kaWY3fzVnEpY32ckPzzQRCsnpdrK3Sw";
 
+  
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
   }, []);
+
+  // NOUVEAU : Vérification des mises à jour au démarrage
+useEffect(() => {
+  const checkForUpdates = async () => {
+    try {
+      const update = await check();
+      if (update) {
+        // Si une mise à jour est trouvée, on affiche une alerte au DJ
+        const wantsUpdate = window.confirm(
+          `Une nouvelle version de Mixify Companion (${update.version}) est disponible !\n\nNotes de mise à jour : ${update.body}\n\nVoulez-vous l'installer maintenant ?`
+        );
+
+        if (wantsUpdate) {
+          console.log(`Installation de la mise à jour ${update.version}...`);
+          await update.downloadAndInstall();
+          console.log("Mise à jour terminée. Redémarrage de l'application...");
+          await relaunch(); // L'application redémarre toute seule avec le nouveau code !
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors de la recherche de mise à jour:", error);
+    }
+  };
+
+  checkForUpdates();
+}, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,19 +78,18 @@ function App() {
     else setSession(data.session);
   };
 
-  // NOUVEAU : Fonction qui récupère tes événements (Propriétaire uniquement pour l'instant)
+  // Fonction qui récupère tes événements (Propriétaire uniquement pour l'instant)
   useEffect(() => {
     const fetchEvents = async () => {
       if (!session?.user?.id) return;
       
       setIsLoadingEvents(true);
       
-      // On utilise le client Supabase qui gère les tokens tout seul !
       const { data, error } = await supabase
         .from('evenements')
         .select('id, name, event_status, event_type, dj_name, spotify_mode, created_at')
         .eq('owner_id', session.user.id)
-        .in('event_status', ['active', 'waiting']) // On filtre directement ici
+        .in('event_status', ['active', 'waiting'])
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -68,7 +100,6 @@ function App() {
       setIsLoadingEvents(false);
     };
 
-    // Dès qu'une session existe, on lance la recherche
     fetchEvents();
   }, [session]);
 
@@ -86,12 +117,12 @@ function App() {
           'apikey': SUPABASE_ANON_KEY
         },
         body: JSON.stringify({
-          event_id: selectedEvent?.id, // On utilise l'ID de l'événement sélectionné
+          event_id: selectedEvent?.id,
           action: 'stopped'
         })
       });
       console.log("Signal d'arrêt envoyé à Mixify");
-      lastSentTrackRef.current = ""; // On réinitialise la mémoire
+      lastSentTrackRef.current = ""; 
     } catch (err) {
       console.error("Erreur lors de l'arrêt:", err);
     }
@@ -100,23 +131,24 @@ function App() {
   const toggleWatching = () => {
     if (isWatching) {
       setIsWatching(false);
-      sendStopAction(); // On prévient Supabase qu'on s'arrête
+      sendStopAction();
     } else {
       setIsWatching(true);
     }
   };
 
-  // NOUVEAU : Fonction de retour aux événements
+  // Fonction de retour aux événements
   const handleBackToEvents = () => {
     if (isWatching) {
       setIsWatching(false);
-      sendStopAction(); // Sécurité : on prévient Mixify qu'on arrête le mix
+      sendStopAction();
     }
-    setSelectedEvent(null); // On vide la mémoire de l'événement pour réafficher la liste
-    setScannerData(null); // On efface le radar pour que le prochain événement soit propre
+    setSelectedEvent(null);
+    setScannerData(null);
+    setPendingTrack(null); // On vide aussi le sas d'attente
   };
 
-  // La boucle principale
+  // La boucle principale avec le sas d'attente de 15s
   useEffect(() => {
     let intervalId: any;
 
@@ -132,43 +164,65 @@ function App() {
             if (data.found_tracks && data.found_tracks.length > 0) {
               const rawTrackName = data.found_tracks[data.found_tracks.length - 1];
               
+              // Si le morceau détecté est différent du dernier morceau ENVOYÉ
               if (rawTrackName !== lastSentTrackRef.current) {
-                lastSentTrackRef.current = rawTrackName;
-                
-                // 1. Découpage du nom de fichier ("Artiste - Titre")
-                let trackArtist = "Inconnu";
-                let trackTitle = rawTrackName;
-                
-                if (rawTrackName.includes(" - ")) {
-                  const parts = rawTrackName.split(" - ");
-                  trackArtist = parts[0].trim(); // Tout ce qui est avant le premier tiret
-                  trackTitle = parts.slice(1).join(" - ").trim(); // Tout le reste
-                }
+                const now = Date.now();
 
-                // 2. Récupération d'un token TOUJOURS valide. 
-                // La librairie Supabase gère le "Refresh Token" toute seule en arrière-plan ici !
-                const { data: { session: currentSession } } = await supabase.auth.getSession();
-                if (!currentSession) return;
+                setPendingTrack(prevPending => {
+                  // Scénario A : Nouveau morceau, on démarre le chrono
+                  if (!prevPending || prevPending.name !== rawTrackName) {
+                    console.log(`⏳ Nouveau morceau détecté en pré-écoute : ${rawTrackName}. Attente de 15s...`);
+                    return { name: rawTrackName, detectedAt: now };
+                  }
 
-                // 3. Envoi de la requête conforme aux règles de ton API
-                const response = await fetch('https://qyvbnfcngltkgaercyby.supabase.co/functions/v1/companion-track-update', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${currentSession.access_token}`,
-                    'apikey': SUPABASE_ANON_KEY
-                  },
-                  body: JSON.stringify({
-                    event_id: selectedEvent?.id, // On utilise l'ID de l'événement sélectionné
-                    track_name: trackTitle,
-                    track_artist: trackArtist,
-                    source: 'serato',
-                    action: 'playing' // Le champ obligatoire pour ton Edge Function !
-                  })
+                  // Scénario B : Le chrono tourne. A-t-on dépassé les 15 secondes ?
+                  if (now - prevPending.detectedAt >= 15000) {
+                    console.log(`✅ Validation après 15s : ${rawTrackName} est considéré comme joué.`);
+                    
+                    lastSentTrackRef.current = rawTrackName; // On marque comme envoyé
+
+                    let trackArtist = "Inconnu";
+                    let trackTitle = rawTrackName;
+                    
+                    if (rawTrackName.includes(" - ")) {
+                      const parts = rawTrackName.split(" - ");
+                      trackArtist = parts[0].trim();
+                      trackTitle = parts.slice(1).join(" - ").trim();
+                    }
+
+                    // Envoi effectif à Supabase
+                    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+                      if (!currentSession) return;
+
+                      fetch('https://qyvbnfcngltkgaercyby.supabase.co/functions/v1/companion-track-update', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${currentSession.access_token}`,
+                          'apikey': SUPABASE_ANON_KEY
+                        },
+                        body: JSON.stringify({
+                          event_id: selectedEvent?.id,
+                          track_name: trackTitle,
+                          track_artist: trackArtist,
+                          source: 'serato',
+                          action: 'playing'
+                        })
+                      })
+                      .then(res => res.json())
+                      .then(result => console.log("Réponse de Mixify :", result))
+                      .catch(err => console.error("Erreur d'envoi API:", err));
+                    });
+
+                    return null; // On vide le sas d'attente
+                  }
+
+                  // Scénario C : Moins de 15s écoulées, on patiente.
+                  return prevPending;
                 });
-
-                const result = await response.json();
-                console.log("Réponse de Mixify :", result);
+              } else {
+                 // Si c'est le même morceau que celui déjà validé et envoyé, on vide le sas
+                 setPendingTrack(null);
               }
             }
           }
@@ -180,12 +234,15 @@ function App() {
     }
 
     return () => clearInterval(intervalId);
-  }, [isWatching, session]);
+  }, [isWatching, session, selectedEvent]);
 
   if (!session) {
     return (
       <div style={{ padding: 40, fontFamily: 'sans-serif', color: 'white' }}>
-        <h2>Connexion Mixify Companion</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 15, marginBottom: 30 }}>
+          <img src={logoBlanc} alt="Mixify" style={{ height: 40 }} />
+          <h2 style={{ margin: 0 }}>Companion</h2>
+        </div>
         <form onSubmit={handleLogin}>
           <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ display: 'block', marginBottom: 10, padding: 8, width: 250 }} />
           <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} style={{ display: 'block', marginBottom: 10, padding: 8, width: 250 }} />
@@ -195,12 +252,15 @@ function App() {
     );
   }
 
-  // NOUVEL ÉCRAN : Si aucun événement n'est sélectionné, on affiche la liste
+  // ÉCRAN : Sélection d'événement
   if (!selectedEvent) {
     return (
       <div className="app-container">
         <header className="app-header">
-          <h2>Sélectionnez un événement 🎧</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+            <img src={logoBlanc} alt="Mixify" style={{ height: 35 }} />
+            <h2 style={{ margin: 0, fontSize: 20 }}>Sélectionnez un événement</h2>
+          </div>
           <span className="user-email">{session.user.email}</span>
         </header>
         
@@ -253,15 +313,17 @@ function App() {
     );
   }
 
-  // Le tableau de bord principal
+  // TABLEAU DE BORD PRINCIPAL
   return (
     <div className="app-container">
       <header className="app-header" style={{ marginBottom: 20 }}>
-        <h2>Mixify Companion 🎧</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+          <img src={logoBlanc} alt="Mixify" style={{ height: 35 }} />
+          <h2 style={{ margin: 0, fontSize: 20 }}>Companion</h2>
+        </div>
         <span className="user-email">{session.user.email}</span>
       </header>
       
-      {/* NOUVEAU : Bandeau récapitulatif de l'événement avec le bouton Retour */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#161b22', padding: '12px 20px', borderRadius: 8, border: '1px solid #30363d', marginBottom: 20 }}>
         <div>
           <span style={{ fontSize: 12, color: '#8b949e', display: 'block', marginBottom: 4 }}>ÉVÉNEMENT ACTIF</span>
@@ -294,12 +356,25 @@ function App() {
       {scannerData && (
         <div className="card" style={{ border: '2px solid #8a2be2' }}>
           <span className="label" style={{ color: '#8a2be2', fontWeight: 'bold' }}>📡 DONNÉES ENVOYÉES À MIXIFY</span>
+          
+          {pendingTrack && (
+            <div style={{ marginBottom: 15, padding: 10, backgroundColor: 'rgba(210, 153, 34, 0.2)', border: '1px solid #d29922', borderRadius: 6, color: '#e3b341', fontSize: 13 }}>
+              ⏳ <strong>Pré-écoute détectée :</strong> {pendingTrack.name}<br/>
+              Validation en cours (attente de 15s pour confirmer la lecture...)
+            </div>
+          )}
+
           <ul style={{ paddingLeft: 20, marginTop: 5, fontSize: 14 }}>
-            {scannerData.found_tracks.map((track, index) => (
-              <li key={index} style={{ marginBottom: 4, color: index === scannerData.found_tracks.length - 1 ? '#2ea043' : 'white' }}>
-                {track} {index === scannerData.found_tracks.length - 1 ? " 🟢 (Transmis)" : ""}
-              </li>
-            ))}
+            {scannerData.found_tracks.map((track, index) => {
+              const isLatest = index === scannerData.found_tracks.length - 1;
+              const isSent = isLatest && lastSentTrackRef.current === track;
+              
+              return (
+                <li key={index} style={{ marginBottom: 4, color: isSent ? '#2ea043' : 'white' }}>
+                  {track} {isSent ? " 🟢 (Transmis à Mixify)" : ""}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
