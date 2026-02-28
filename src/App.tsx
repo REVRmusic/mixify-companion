@@ -118,10 +118,12 @@ useEffect(() => {
         },
         body: JSON.stringify({
           event_id: selectedEvent?.id,
-          action: 'stopped'
+          action: 'stopped',
+          track_name: "",    // On vide explicitement le nom pour le web
+          track_artist: ""   // On vide explicitement l'artiste pour le web
         })
       });
-      console.log("Signal d'arrêt envoyé à Mixify");
+      console.log("Signal d'arrêt envoyé à Mixify (affichage coupé)");
       lastSentTrackRef.current = ""; 
     } catch (err) {
       console.error("Erreur lors de l'arrêt:", err);
@@ -132,6 +134,7 @@ useEffect(() => {
     if (isWatching) {
       setIsWatching(false);
       sendStopAction();
+      setPendingTrack(null); // On vide le morceau en attente de validation
     } else {
       setIsWatching(true);
     }
