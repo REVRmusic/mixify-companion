@@ -238,16 +238,106 @@ useEffect(() => {
 
   if (!session) {
     return (
-      <div style={{ padding: 40, fontFamily: 'sans-serif', color: 'white' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 15, marginBottom: 30 }}>
-          <img src={logoBlanc} alt="Mixify" style={{ height: 40 }} />
-          <h2 style={{ margin: 0 }}>Copilot</h2>
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        backgroundColor: '#09090b', // Fond très sombre comme ton web
+        position: 'relative', 
+        overflow: 'hidden', 
+        padding: 20,
+        fontFamily: 'sans-serif'
+      }}>
+        {/* Blobs décoratifs en arrière-plan (Identiques au web) */}
+        <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: 500, height: 500, borderRadius: '50%', backgroundColor: 'rgba(138, 43, 226, 0.08)', filter: 'blur(80px)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-15%', right: '-10%', width: 400, height: 400, borderRadius: '50%', backgroundColor: 'rgba(88, 166, 255, 0.08)', filter: 'blur(80px)', pointerEvents: 'none' }} />
+        
+        <div style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 10 }}>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: 24, gap: 12 }}>
+            <img src={logoBlanc} alt="Logo Mixify" style={{ height: 48, objectFit: 'contain' }} />
+            <p style={{ margin: 0, fontSize: 14, color: '#a1a1aa' }}>Bon retour parmi nous 👋</p>
+          </div>
+
+          <div style={{ 
+            backgroundColor: 'rgba(24, 24, 27, 0.95)', 
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.1)', 
+            borderRadius: 12, 
+            padding: 32,
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{ marginBottom: 24 }}>
+              <h2 style={{ margin: '0 0 6px 0', fontSize: 20, color: 'white', fontWeight: 600 }}>Connexion Copilot</h2>
+              <p style={{ margin: 0, fontSize: 14, color: '#a1a1aa' }}>Accédez à votre espace événement</p>
+            </div>
+
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label style={{ fontSize: 14, color: '#e4e4e7', fontWeight: 500 }}>Email <span style={{ color: '#ef4444' }}>*</span></label>
+                <input 
+                  type="email" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  required 
+                  autoComplete="username email" // Aide pour le trousseau Mac
+                  placeholder="votre@email.com" 
+                  style={{ 
+                    padding: '10px 12px', 
+                    borderRadius: 6, 
+                    border: '1px solid #3f3f46', 
+                    backgroundColor: '#27272a', 
+                    color: 'white', 
+                    fontSize: 14, 
+                    outline: 'none',
+                    transition: 'border-color 0.2s'
+                  }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label style={{ fontSize: 14, color: '#e4e4e7', fontWeight: 500 }}>Mot de passe <span style={{ color: '#ef4444' }}>*</span></label>
+                <input 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  required 
+                  autoComplete="current-password" // Aide pour le trousseau Mac
+                  placeholder="••••••••" 
+                  style={{ 
+                    padding: '10px 12px', 
+                    borderRadius: 6, 
+                    border: '1px solid #3f3f46', 
+                    backgroundColor: '#27272a', 
+                    color: 'white', 
+                    fontSize: 14, 
+                    outline: 'none',
+                    transition: 'border-color 0.2s'
+                  }} 
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                style={{ 
+                  padding: '12px', 
+                  borderRadius: 6, 
+                  background: 'linear-gradient(to right, #8a2be2, #4b0082)', // Le dégradé Mixify
+                  color: 'white', 
+                  border: 'none', 
+                  fontWeight: 500, 
+                  cursor: 'pointer', 
+                  marginTop: 8,
+                  fontSize: 14,
+                  boxShadow: '0 4px 12px rgba(138, 43, 226, 0.3)'
+                }}
+              >
+                Se connecter
+              </button>
+            </form>
+          </div>
         </div>
-        <form onSubmit={handleLogin}>
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ display: 'block', marginBottom: 10, padding: 8, width: 250 }} />
-          <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} style={{ display: 'block', marginBottom: 10, padding: 8, width: 250 }} />
-          <button type="submit" style={{ padding: 8, cursor: 'pointer' }}>Se connecter</button>
-        </form>
       </div>
     );
   }
