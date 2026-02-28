@@ -24,6 +24,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -34,7 +35,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFDRURDN0UzNUY3MjI2M0IKUldRN0puSmY0OGZ0SEtJbXFGZmxqYXZjK2xEdHdleHVneFpVREpqS1dXRHlhUVNjMUJOcndZUXAK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBBRTQwN0NCOEE1Njc2REUKUldUZWRsYUt5d2ZrQ21YL3RIeFlaTWpRcjQyOVRkdDY1VU9icUJvWkl6Nlc0ZERQOE5FWEQ3eWMK",
       "endpoints": [
         "https://raw.githubusercontent.com/REVRmusic/mixify-companion/main/update.json"
       ]
