@@ -1,11 +1,11 @@
 {
-  "version": "0.1.2",
-  "notes": "Mise à jour de l'interface et du système Copilot.",
-  "pub_date": "2026-02-28T16:00:00Z",
+  "version": "0.1.3",
+  "notes": "Mise à jour automatique activée et améliorations de l'algorithme DJ.",
+  "pub_date": "2026-03-01T14:30:00Z",
   "platforms": {
     "macos-aarch64": {
-      "signature": "TA_SIGNATURE_DU_FICHIER_SIG_ICI",
-      "url": "https://github.com/REVRmusic/mixify-companion/releases/download/v0.1.2/mixify-copilot_0.1.2_aarch64.app.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUXVTK3FwZjk4b0RoZVIycGoxNWpRMVBUdEZEa3pmV3JHemM3cTBlTTNjYmliT3ZBbGsyanNoSDltdUZZT2luL01SalNPYmQxNkVzcGhabzJvUWlheTNkZFVGSnUza0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcyMzcyNzQ5CWZpbGU6TWl4aWZ5IENvcGlsb3QuYXBwLnRhci5negpRb3Zhdng1V1VmSWVHOHJLOTNUUFlGQ1FVeWRRT3M3RjNZalFSWGY2dEZyOWsvZGo5Nm12dGN0anlOZS9aNWtjdGthYnJmd0NvOEdvWjhpYmFlV3JEdz09Cg==%",
+      "url": "https://github.com/REVRmusic/mixify-companion/releases/download/v0.1.3/Mixify.Copilot.app.tar.gz"
     }
   }
 }
