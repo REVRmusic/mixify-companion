@@ -96,7 +96,6 @@ fn get_latest_serato_track() -> Result<SeratoScannerData, String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init()) // NOUVEAU : Le moteur de redémarrage
         .invoke_handler(tauri::generate_handler![get_latest_serato_track])
