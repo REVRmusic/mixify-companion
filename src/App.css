@@ -129,3 +129,9 @@ body {
   font-style: italic;
   padding: 20px 0;
 }
+
+.software-card:hover {
+  border-color: #8a2be2 !important;
+  background-color: rgba(138, 43, 226, 0.05) !important;
+  transform: translateY(-2px);
+}
