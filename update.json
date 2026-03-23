@@ -3,7 +3,7 @@
   "notes": "Amélioration globale de l'interface utilisateur, correction de bugs mineurs et optimisation des performances.",
   "pub_date": "2026-03-02T22:00:00Z",
   "platforms": {
-    "macos-aarch64": {
+    "darwin-aarch64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTN2JEQzZwQ2JiSDVhdnNLbUZZdGVPRWdhclhLQTUxNllvUC9xSjJmcWxWZTgrNDBOVkpEUDEvTndHcGxYcENqcFZUR3Z1ekpyeHZKTWJTcnQ0QUpvMkFRSWpicDgyS1FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcyOTc3MzQwCWZpbGU6TWl4aWZ5IENvcGlsb3QuYXBwLnRhci5negphalpjVWxlNUVLS2FxWXlscDZaeGFERFk2b0JKeSt4Q01JVnltMDZHd0VQTW5IcHZhRTdHem1aai8xZUVndGtuZUxVTnRuV0doNWlRSnMwQ2RkU0dBQT09Cg==",
       "url": "https://github.com/REVRmusic/mixify-companion/releases/download/v0.1.5/Mixify.Copilot.app.tar.gz"
     }

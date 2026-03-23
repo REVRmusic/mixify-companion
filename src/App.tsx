@@ -36,20 +36,40 @@ function App() {
   const [selectedEvent, setSelectedEvent] = useState<MixifyEvent | null>(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [, setTick] = useState(0);
+  const [syncDelay, setSyncDelay] = useState<number>(22000);
 
   const lastSentTrackRef = useRef<string>("");
 
   // État pour la validation temporelle
   const [pendingTrack, setPendingTrack] = useState<{ name: string, detectedAt: number } | null>(null);
 
+  // SYSTÈME DE MISE À JOUR
+  const [updateInfo, setUpdateInfo] = useState<any>(null);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   // Clé publique Supabase requise par ton API
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5dmJuZmNuZ2x0a2dhZXJjeWJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ2ODg5MzAsImV4cCI6MjA1MDI2NDkzMH0.UXPQPSAlYmu2kaWY3fzVnEpY32ckPzzQRCsnpdrK3Sw";
 
 
   useEffect(() => {
+    // 1. On vérifie s'il y a une session immédiatement au démarrage
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
+
+    // 2. NOUVEAU : On installe un "écouteur" qui guette la réponse retardée de Supabase
+    // Si Supabase retrouve la session en arrière-plan, il déclenche cet événement
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session); // On met à jour l'interface en direct
+      }
+    );
+
+    // 3. On débranche proprement l'écouteur quand on quitte l'application (bonne pratique)
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // On force l'application à se rafraîchir toutes le secondes pour le compte à rebours
@@ -58,77 +78,57 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  
-  // NOUVEAU : Vérification des mises à jour au démarrage
+  // GESTIONNAIRE CENTRAL DES MISES À JOUR (Démarrage + Menu Apple)
   useEffect(() => {
-    const checkForUpdates = async () => {
+    // 1. Fonction sécurisée (sans alert)
+    const checkForUpdates = async (isManual: boolean) => {
       try {
         const update = await check();
         if (update) {
-          // Si une mise à jour est trouvée, on affiche une alerte au DJ
-          const wantsUpdate = window.confirm(
-            `Une nouvelle version de Mixify Copilot (${update.version}) est disponible !\n\nNotes de mise à jour : ${update.body}\n\nVoulez-vous l'installer maintenant ?`
-          );
-
-          if (wantsUpdate) {
-            console.log(`Installation de la mise à jour ${update.version}...`);
-            await update.downloadAndInstall();
-            console.log("Mise à jour terminée. Redémarrage de l'application...");
-            await relaunch(); // L'application redémarre toute seule avec le nouveau code !
-          }
+          setUpdateInfo(update); // Déclenche notre belle modale Mixify
+        } else if (isManual) {
+          setUpdateMessage("Mixify Copilot est déjà à jour !");
+          setTimeout(() => setUpdateMessage(null), 4000);
         }
-      } catch (error) {
-        console.error("Erreur lors de la recherche de mise à jour:", error);
+      } catch (error: any) {
+        console.error("Erreur de maj détaillée :", error);
+        
+        if (isManual) {
+          // LE SÉRUM DE VÉRITÉ : On va lire manuellement le fichier pour voir ce qu'il contient
+          fetch("https://raw.githubusercontent.com/REVRmusic/mixify-companion/main/update.json?force=" + Date.now())
+            .then(res => res.text())
+            .then(text => {
+              console.log("📄 Contenu brut du fichier vu par l'application :", text);
+              
+              if (!text.includes("darwin-aarch64")) {
+                setUpdateMessage("🚨 C'est le cache ! L'app lit toujours l'ancien fichier sans 'darwin-aarch64'.");
+              } else if (!text.includes('"version": "0.1.6"')) {
+                setUpdateMessage("⚠️ Le fichier a la bonne plateforme, mais la version n'est pas 0.1.6 !");
+              } else {
+                setUpdateMessage(`Mystère Tauri : ${String(error)}`);
+              }
+            })
+            .catch(() => setUpdateMessage(`Erreur réseau / système : ${String(error)}`));
+
+          setTimeout(() => setUpdateMessage(null), 8000);
+        }
       }
     };
 
-    checkForUpdates();
-  }, []);
+    // 2. Vérification invisible au démarrage
+    checkForUpdates(false);
 
-  // ÉCOUTEUR DU MENU APPLE (Recherche manuelle de mise à jour)
-  useEffect(() => {
-    // 1. On prépare une "boîte" vide pour stocker notre fonction de débranchement
-    let unlistenFunction: () => void;
+    // 3. Écouteur pour le clic dans la barre des menus Apple
+    const unlistenPromise = listen('trigger-update-check', () => {
+      checkForUpdates(true);
+    });
 
-    // 2. On crée une fonction spéciale pour brancher l'écouteur de manière sécurisée
-    const setupListener = async () => {
-      unlistenFunction = await listen('trigger-update-check', async () => {
-
-        alert("💡 BINGO REACT : Le signal est bien arrivé dans l'interface !");
-
-        try {
-          const update = await check();
-          if (update) {
-            const wantsUpdate = window.confirm(
-              `Une nouvelle version (${update.version}) est disponible !\n\nNotes : ${update.body}\n\nVoulez-vous l'installer maintenant ?`
-            );
-
-            if (wantsUpdate) {
-              console.log(`Installation de la mise à jour ${update.version}...`);
-              await update.downloadAndInstall();
-              console.log("Mise à jour terminée. Redémarrage...");
-              await relaunch();
-            }
-          } else {
-            alert("Mixify Copilot est déjà à jour ! Vous avez la dernière version.");
-          }
-        } catch (error) {
-          console.error("Erreur lors de la recherche manuelle de mise à jour:", error);
-          alert("Impossible de vérifier les mises à jour pour le moment.");
-        }
-      });
-    };
-
-    // 3. On lance le branchement
-    setupListener();
-
-    // 4. Si l'application se ferme, on débranche proprement
+    // 4. Nettoyage parfait
     return () => {
-      if (unlistenFunction) {
-        unlistenFunction();
-      }
+      unlistenPromise.then(unlisten => unlisten());
     };
   }, []);
+  
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,12 +234,12 @@ function App() {
                 setPendingTrack(prevPending => {
                   // Scénario A : Nouveau morceau, on démarre le chrono
                   if (!prevPending || prevPending.name !== rawTrackName) {
-                    console.log(`⏳ Nouveau morceau détecté en pré-écoute : ${rawTrackName}. Attente de 22s...`);
+                    console.log(`⏳ Nouveau morceau détecté en pré-écoute : ${rawTrackName}. Attente de ${syncDelay / 1000}s...`);
                     return { name: rawTrackName, detectedAt: now };
                   }
 
-                  // Scénario B : Le chrono tourne. A-t-on dépassé les 22 secondes ?
-                  if (now - prevPending.detectedAt >= 22000) {
+                  // Scénario B : Le chrono tourne. A-t-on dépassé le délai choisi ?
+                  if (now - prevPending.detectedAt >= syncDelay) {
                     
                     // NOUVELLE LOGIQUE : On ne valide et on n'envoie le morceau QUE si la SYNC est active
                     if (isWatching) {
@@ -306,7 +306,7 @@ function App() {
     }
 
     return () => clearInterval(intervalId);
-  }, [isWatching, session, selectedEvent]);
+  }, [isWatching, session, selectedEvent, syncDelay]);
 
   if (!session) {
     return (
@@ -668,7 +668,7 @@ function App() {
               fontWeight: 'bold',
               border: '2px solid #1c1c1e'
             }}>
-              {Math.max(0, Math.ceil((22000 - (Date.now() - pendingTrack.detectedAt)) / 1000))}
+              {Math.max(0, Math.ceil((syncDelay - (Date.now() - pendingTrack.detectedAt)) / 1000))}
             </div>
           )}
         </div>
@@ -691,20 +691,50 @@ function App() {
         </div>
       </div>
 
-      <div className="card status-card">
-        <div>
-          <span className="label">LIVE SYNC STATUS</span>
-          <div className="status-indicator">
-            <span className={`dot ${isWatching ? 'active' : 'inactive'}`}></span>
-            <h3>{isWatching ? "SYNC ACTIVE" : "SYNC EN PAUSE"}</h3>
+      <div className="card status-card" style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+        {/* LIGNE 1 : Statut et Bouton Démarrer/Arrêter */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <div>
+            <span className="label">LIVE SYNC STATUS</span>
+            <div className="status-indicator">
+              <span className={`dot ${isWatching ? 'active' : 'inactive'}`}></span>
+              <h3>{isWatching ? "SYNC ACTIVE" : "SYNC EN PAUSE"}</h3>
+            </div>
+          </div>
+          <button 
+            className={`btn-sync ${isWatching ? 'btn-stop' : 'btn-start'}`}
+            onClick={toggleWatching}
+          >
+            {isWatching ? "ARRÊTER" : "DÉMARRER"}
+          </button>
+        </div>
+
+        {/* LIGNE 2 : Sélecteur de vitesse de mix */}
+        <div style={{ width: '100%', borderTop: '1px solid #30363d', paddingTop: 15 }}>
+          <span style={{ fontSize: 11, color: '#8b949e', display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 'bold' }}>
+            Délai de validation du mix
+          </span>
+          <div style={{ display: 'flex', backgroundColor: '#09090b', borderRadius: 8, padding: 4, border: '1px solid #30363d', gap: 4 }}>
+            <button 
+              onClick={() => setSyncDelay(10000)} 
+              style={{ flex: 1, padding: '8px 0', fontSize: 12, borderRadius: 6, backgroundColor: syncDelay === 10000 ? '#3f3f46' : 'transparent', color: syncDelay === 10000 ? 'white' : '#8b949e', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: syncDelay === 10000 ? 'bold' : 'normal' }}
+            >
+              ⚡️ 10s (Rapide)
+            </button>
+            <button 
+              onClick={() => setSyncDelay(15000)} 
+              style={{ flex: 1, padding: '8px 0', fontSize: 12, borderRadius: 6, backgroundColor: syncDelay === 15000 ? '#3f3f46' : 'transparent', color: syncDelay === 15000 ? 'white' : '#8b949e', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: syncDelay === 15000 ? 'bold' : 'normal' }}
+            >
+              🎵 15s (Normal)
+            </button>
+            <button 
+              onClick={() => setSyncDelay(22000)} 
+              style={{ flex: 1, padding: '8px 0', fontSize: 12, borderRadius: 6, backgroundColor: syncDelay === 22000 ? '#3f3f46' : 'transparent', color: syncDelay === 22000 ? 'white' : '#8b949e', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: syncDelay === 22000 ? 'bold' : 'normal' }}
+            >
+              🐢 22s (Long)
+            </button>
           </div>
         </div>
-        <button 
-          className={`btn-sync ${isWatching ? 'btn-stop' : 'btn-start'}`}
-          onClick={toggleWatching}
-        >
-          {isWatching ? "ARRÊTER" : "DÉMARRER"}
-        </button>
       </div>
 
       {/* MODIFICATION : On ajoute "isWatching &&" pour cacher la boîte quand c'est en pause */}
@@ -715,7 +745,7 @@ function App() {
           {pendingTrack && (
             <div style={{ marginBottom: 15, padding: 10, backgroundColor: 'rgba(210, 153, 34, 0.2)', border: '1px solid #d29922', borderRadius: 6, color: '#e3b341', fontSize: 13 }}>
               ⏳ <strong>Pré-écoute détectée :</strong> {pendingTrack.name}<br/>
-              Validation en cours (attente de 22s pour confirmer la lecture...)
+              Validation en cours (attente de {syncDelay / 1000}s pour confirmer la lecture...)
             </div>
           )}
 
@@ -739,6 +769,55 @@ function App() {
       {debugError && (
         <div style={{ marginTop: 20, padding: 15, backgroundColor: 'rgba(218, 54, 51, 0.2)', border: '1px solid #da3633', borderRadius: 8, color: '#ff7b72', fontSize: 14 }}>
           <strong>Erreur :</strong> {debugError}
+        </div>
+      )}
+      {/* --- SYSTÈME DE MISE À JOUR (INTERFACE VISUELLE) --- */}
+      {updateMessage && (
+        <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', backgroundColor: '#2ea043', color: 'white', padding: '10px 20px', borderRadius: 8, zIndex: 9999, fontSize: 14, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)' }}>
+          {updateMessage}
+        </div>
+      )}
+
+      {updateInfo && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+          <div style={{ backgroundColor: '#18181b', padding: 32, borderRadius: 16, border: '1px solid #8a2be2', maxWidth: 400, textAlign: 'center', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)' }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>🚀</div>
+            <h3 style={{ margin: '0 0 8px 0', color: 'white', fontSize: 20 }}>Mise à jour disponible</h3>
+            <p style={{ margin: 0, color: '#a1a1aa', fontSize: 14 }}>La version <strong>{updateInfo.version}</strong> de Mixify Copilot est prête à être installée.</p>
+            
+            {updateInfo.body && (
+              <div style={{ margin: '20px 0', padding: 12, backgroundColor: '#27272a', borderRadius: 8, fontSize: 13, color: '#d4d4d8', textAlign: 'left', border: '1px solid #3f3f46' }}>
+                <strong>Nouveautés :</strong><br/>{updateInfo.body}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+              <button 
+                onClick={() => setUpdateInfo(null)} 
+                disabled={isUpdating}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, backgroundColor: 'transparent', border: '1px solid #52525b', color: '#e4e4e7', cursor: isUpdating ? 'not-allowed' : 'pointer', fontWeight: 500 }}
+              >
+                Plus tard
+              </button>
+              <button 
+                onClick={async () => {
+                  setIsUpdating(true);
+                  try {
+                    await updateInfo.downloadAndInstall();
+                    await relaunch();
+                  } catch (e) {
+                    console.error(e);
+                    setIsUpdating(false);
+                    setUpdateInfo(null);
+                  }
+                }} 
+                disabled={isUpdating}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'linear-gradient(to right, #8a2be2, #4b0082)', border: 'none', color: 'white', cursor: isUpdating ? 'wait' : 'pointer', fontWeight: 500, boxShadow: '0 4px 12px rgba(138, 43, 226, 0.3)' }}
+              >
+                {isUpdating ? "Installation..." : "Installer"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

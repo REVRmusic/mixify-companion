@@ -32,17 +32,22 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "signingIdentity": "H2WHSZB7M6"
+    }
   },
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFGREIyNkE0QkEzMDZDQkIKUldTN2JEQzZwQ2JiSDdzL3NIeGQ4NThCS096WWl3M1ZIUFJKSzJHNGlFTmR3MytRTS9CQUtjemYK",
       "endpoints": [
-        "https://raw.githubusercontent.com/REVRmusic/mixify-companion/main/update.json"
+        "https://raw.githubusercontent.com/REVRmusic/mixify-companion/main/update.json?v=2"
       ]
     },
     "deep-link": {
-      "schemes": ["mixify-copilot"]
+      "desktop": {
+        "schemes": ["mixify-copilot"]
+      }
     }
   }
 }
